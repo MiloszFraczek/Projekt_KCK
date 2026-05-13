@@ -48,5 +48,21 @@ def generate_progress_chart(output_filename="wykres_postepow.png"): #tworzenie w
     rows = cursor.fetchall()
     conn.close()
 
+    dates = [row[0][:10] for row in rows]
+    reps = [row[1] for row in rows]
+    mistakes = [row[2] for row in rows]
+
+    #tworzenie wykresu
+    plt.figure(figsize=(10,6))
+
+    plt.plot(dates, reps, marker='o', linestyle='-', color='green', label='Poprawne powtorzenia')
+    plt.plot(dates, mistakes, marker='x', linestyle='--', color='red', label='Bledy')
+
+
+    #zapisanie wykresu
+    plt.savefig(output_filename)
+    plt.close()
+    print(f"Wygenerowano i zapisano wykres:{output_filename}")
+
 if __name__ == "__main__":
     init_db() #test dzialania tworzenia i zapisu sesji
