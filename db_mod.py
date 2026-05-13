@@ -1,5 +1,8 @@
 import sqlite3
 import datetime
+import os
+import matplotlib.pyplot as plt
+
 
 DB_NAME = "cyber_trener.db"
 
@@ -34,6 +37,16 @@ def save_session(reps, mistakes, path_front, path_side):
     conn.close()
     print(f"Zapisano sesję: {date_now}")
 
+
+#plik w foramacie png
+def generate_progress_chart(output_filename="wykres_postepow.png"): #tworzenie wykresu postepow
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    #pobranie danych z bazy danych
+    cursor.execute("SELECT date, reps_count, mistakes_count FROM sessions ORDER BY date ASC")
+    rows = cursor.fetchall()
+    conn.close()
 
 if __name__ == "__main__":
     init_db() #test dzialania tworzenia i zapisu sesji
