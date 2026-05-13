@@ -48,6 +48,11 @@ def generate_progress_chart(output_filename="wykres_postepow.png"): #tworzenie w
     rows = cursor.fetchall()
     conn.close()
 
+    #zabezpiecznie przed brakiem danych
+    if not rows:
+        print("Brak danych w bazie. Wykonaj najpierw trening!")
+        return
+
     dates = [row[0][:10] for row in rows]
     reps = [row[1] for row in rows]
     mistakes = [row[2] for row in rows]
