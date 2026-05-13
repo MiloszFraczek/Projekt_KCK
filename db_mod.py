@@ -33,8 +33,10 @@ def save_session(reps, mistakes, path_front, path_side):
         INSERT INTO sessions (date, reps_count, mistakes_count, video_path_front, video_path_side)
         VALUES (?, ?, ?, ?, ?)
     ''', (date_now, reps, mistakes, path_front, path_side))
+
     conn.commit()
     conn.close()
+
     print(f"Zapisano sesję: {date_now}")
 
 
@@ -63,11 +65,12 @@ def generate_progress_chart(output_filename="wykres_postepow.png"): #tworzenie w
     plt.plot(dates, reps, marker='o', linestyle='-', color='green', label='Poprawne powtorzenia')
     plt.plot(dates, mistakes, marker='x', linestyle='--', color='red', label='Bledy')
 
-
     #zapisanie wykresu
     plt.savefig(output_filename)
     plt.close()
+
     print(f"Wygenerowano i zapisano wykres:{output_filename}")
 
 if __name__ == "__main__":
     init_db() #test dzialania tworzenia i zapisu sesji
+    generate_progress_chart()  #test funkcji
