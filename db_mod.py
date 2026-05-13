@@ -3,6 +3,7 @@ import datetime
 
 DB_NAME = "cyber_trener.db"
 
+#tworzenie bazy danych
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -16,9 +17,11 @@ def init_db():
             video_path_side TEXT
         )
     ''')
+
     conn.commit()
     conn.close()
 
+#zapis sesji do bazy danych
 def save_session(reps, mistakes, path_front, path_side):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -30,5 +33,7 @@ def save_session(reps, mistakes, path_front, path_side):
     conn.commit()
     conn.close()
     print(f"Zapisano sesję: {date_now}")
+
+
 if __name__ == "__main__":
-    init_db()
+    init_db() #test dzialania tworzenia i zapisu sesji
