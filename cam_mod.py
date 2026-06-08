@@ -1,3 +1,4 @@
+# importowanie narzędzi
 import cv2
 import numpy as np
 import threading
@@ -5,137 +6,236 @@ import time
 import ssl
 import mediapipe as mp
 
+# IMPORT TWOJEGO MODUŁU GŁOSOWEGO
+from voice_mod import VoiceMod
+
 ssl._create_default_https_context = ssl._create_unverified_context
 
-mp_rysuj = mp.solutions.drawing_utils
-mp_poza = mp.solutions.pose
+mp_drawing = mp.solutions.drawing_utils
+mp_pose = mp.solutions.pose
 
-IP_KAMERY_PRZOD = "http://10.239.195.177:5001/video"
-KAMERA_BOK_USB = 0
+# ustawienia kamer
+INDEKS_FRONT = 0
+INDEKS_BOK = 1
 
-SZEROKOSC = 960
-WYSOKOSC = 720
+TARGET_WIDTH = 960
+TARGET_HEIGHT = 720
 
 
-class StrumienWideo:
-    def __init__(self, zrodlo=0, szer=960, wys=720):
-        # Wymuszenie DirectShow dla wirtualnych kamer (Iriun)
-        if isinstance(zrodlo, int):
-            self.strumien = cv2.VideoCapture(zrodlo, cv2.CAP_DSHOW)
-        else:
-            self.strumien = cv2.VideoCapture(zrodlo)
-
-        self.strumien.set(cv2.CAP_PROP_FRAME_WIDTH, szer)
-        self.strumien.set(cv2.CAP_PROP_FRAME_HEIGHT, wys)
-        self.pobrano, self.klatka = self.strumien.read()
-        self.zatrzymany = False
+# klasa do pobierania wideo
+class RTSPVideoStream:
+    def __init__(self, src=0, width=960, height=720):
+        self.stream = cv2.VideoCapture(src)
+        self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        self.grabbed, self.frame = self.stream.read()
+        self.stopped = False
 
     def start(self):
-        threading.Thread(target=self.aktualizuj, args=(), daemon=True).start()
+        threading.Thread(target=self.update, args=(), daemon=True).start()
         return self
 
-    def aktualizuj(self):
-        while not self.zatrzymany:
-            if not self.pobrano:
-                self.stop()
-            else:
-                self.pobrano, self.klatka = self.strumien.read()
+    def update(self):
+        while not self.stopped:
+            try:
+                if not self.grabbed:
+                    self.stop()
+                else:
+                    self.grabbed, self.frame = self.stream.read()
+            except Exception:
+                self.stopped = True
+                break
 
-    def czytaj(self):
-        return self.klatka
+    def read(self):
+        return self.frame
 
     def stop(self):
-        self.zatrzymany = True
-        self.strumien.release()
+        self.stopped = True
+        self.stream.release()
 
 
-def oblicz_kat(a, b, c):
+# funkcja do obliczania kątów
+def calculate_angle(a, b, c):
     a = np.array(a)
     b = np.array(b)
     c = np.array(c)
-    radiany = np.arctan2(c[1] - b[1], c[0] - b[0]) - np.arctan2(a[1] - b[1], a[0] - b[0])
-    kat = np.abs(radiany * 180.0 / np.pi)
-    return 360 - kat if kat > 180.0 else kat
+    radians = np.arctan2(c[1] - b[1], c[0] - b[0]) - np.arctan2(a[1] - b[1], a[0] - b[0])
+    angle = np.abs(radians * 180.0 / np.pi)
+    return 360 - angle if angle > 180.0 else angle
 
 
-print("Łączenie z kamerami...")
-kamera_przod = StrumienWideo(IP_KAMERY_PRZOD, SZEROKOSC, WYSOKOSC).start()
-kamera_bok = StrumienWideo(KAMERA_BOK_USB, SZEROKOSC, WYSOKOSC).start()
+# start programu
+cam_front = RTSPVideoStream(src=INDEKS_FRONT, width=TARGET_WIDTH, height=TARGET_HEIGHT).start()
+cam_side = RTSPVideoStream(src=INDEKS_BOK, width=TARGET_WIDTH, height=TARGET_HEIGHT).start()
 
-licznik_powtorzen = 0
-stan_ruchu = "GORA"
+# inicjalizacja trenera głosowego
+trener = VoiceMod()
 
-styl_punktow = mp_rysuj.DrawingSpec(color=(0, 255, 0), thickness=4, circle_radius=3)
-styl_linii = mp_rysuj.DrawingSpec(color=(255, 255, 255), thickness=2)
+rep_counter = 0
+deadlift_state = "START"
+rep_min_score = 100
+last_rep_status = ""
+last_rep_color = (255, 255, 255)
 
-# Zmniejszona pewność AI do 50% i model_complexity=1 (szybszy i łatwiej łapie szkielet z boku)
-with mp_poza.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5, model_complexity=1) as poza_przod, \
-        mp_poza.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5, model_complexity=1) as poza_bok:
-    print("System gotowy! Wciśnij 'q' na podglądzie, aby wyjść.")
-
+with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5, model_complexity=1) as pose_front, \
+        mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5, model_complexity=1) as pose_side:
     while True:
-        klatka_przod = kamera_przod.czytaj()
-        klatka_bok = kamera_bok.czytaj()
+        frame_f = cam_front.read()
+        frame_s = cam_side.read()
 
-        # Wykrywacz problemów - żeby okienko nie wieszało się bez sensu
-        if klatka_przod is None or klatka_bok is None:
-            stan_p = "OK" if klatka_przod is not None else "BRAK"
-            stan_b = "OK" if klatka_bok is not None else "BRAK"
-            print(f"Czekam na kamery... Przod (Mac): {stan_p} | Bok (Telefon): {stan_b}")
+        if frame_f is None or frame_s is None:
+            stan_p = "ok" if frame_f is not None else "brak"
+            stan_b = "ok" if frame_s is not None else "brak"
+            print(f"czekam na kamery... przod: {stan_p} | bok: {stan_b}")
             time.sleep(1)
             continue
 
-        klatka_przod = cv2.resize(klatka_przod, (SZEROKOSC, WYSOKOSC))
-        klatka_bok = cv2.resize(klatka_bok, (SZEROKOSC, WYSOKOSC))
+        frame_f = cv2.resize(frame_f, (TARGET_WIDTH, TARGET_HEIGHT))
+        frame_s = cv2.resize(frame_s, (TARGET_WIDTH, TARGET_HEIGHT))
 
-        obraz_przod_rgb = cv2.cvtColor(klatka_przod, cv2.COLOR_BGR2RGB)
-        obraz_bok_rgb = cv2.cvtColor(klatka_bok, cv2.COLOR_BGR2RGB)
+        img_f = cv2.cvtColor(frame_f, cv2.COLOR_BGR2RGB)
+        img_s = cv2.cvtColor(frame_s, cv2.COLOR_BGR2RGB)
 
-        wyniki_przod = poza_przod.process(obraz_przod_rgb)
-        wyniki_bok = poza_bok.process(obraz_bok_rgb)
+        results_f = pose_front.process(img_f)
+        results_s = pose_side.process(img_s)
 
-        # Rysowanie na kamerze z przodu (tylko wizualnie)
-        if wyniki_przod.pose_landmarks:
-            mp_rysuj.draw_landmarks(klatka_przod, wyniki_przod.pose_landmarks, mp_poza.POSE_CONNECTIONS, styl_punktow,
-                                    styl_linii)
+        errors_front = []
+        errors_side = []
+        krytyczny_blad_glosowy = None
+        current_score = 100
 
-        # Rysowanie i liczenie na kamerze z boku
-        if wyniki_bok.pose_landmarks:
-            mp_rysuj.draw_landmarks(klatka_bok, wyniki_bok.pose_landmarks, mp_poza.POSE_CONNECTIONS, styl_punktow,
-                                    styl_linii)
-            punkty = wyniki_bok.pose_landmarks.landmark
+        # 1. analiza przód
+        if results_f.pose_landmarks:
+            landmarks = results_f.pose_landmarks.landmark
 
-            bark = [punkty[mp_poza.PoseLandmark.LEFT_SHOULDER.value].x,
-                    punkty[mp_poza.PoseLandmark.LEFT_SHOULDER.value].y]
-            biodro = [punkty[mp_poza.PoseLandmark.LEFT_HIP.value].x, punkty[mp_poza.PoseLandmark.LEFT_HIP.value].y]
-            kolano = [punkty[mp_poza.PoseLandmark.LEFT_KNEE.value].x, punkty[mp_poza.PoseLandmark.LEFT_KNEE.value].y]
-            kostka = [punkty[mp_poza.PoseLandmark.LEFT_ANKLE.value].x, punkty[mp_poza.PoseLandmark.LEFT_ANKLE.value].y]
+            l_shoulder = [landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].y,
+                          landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x]
+            r_shoulder = [landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y,
+                          landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x]
+            l_knee_x = landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x
+            r_knee_x = landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].x
+            l_hip_x = landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x
+            r_hip_x = landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].x
 
-            kat_biodra = oblicz_kat(bark, biodro, kolano)
-            kat_kolana = oblicz_kat(biodro, kolano, kostka)
+            if abs(l_shoulder[0] - r_shoulder[0]) > 0.04:
+                errors_front.append("ASYMETRIA BARKOW! (-10%)")
+                current_score -= 10
+                krytyczny_blad_glosowy = "delts_asymetry"
 
-            # Zejście do pozycji martwego ciągu
-            if kat_biodra < 110 and kat_kolana < 120:
-                stan_ruchu = "DOL"
+            knee_dist = abs(l_knee_x - r_knee_x)
+            hip_dist = abs(l_hip_x - r_hip_x)
+            if knee_dist < hip_dist * 0.85:
+                errors_front.append("KOLANA DO SRODKA! (-15%)")
+                current_score -= 15
+                krytyczny_blad_glosowy = "legs_width"
 
-            # Powrót do stania
-            if kat_biodra > 165 and kat_kolana > 165:
-                if stan_ruchu == "DOL":
-                    licznik_powtorzen += 1
-                    stan_ruchu = "GORA"
+            skel_color_f = (0, 255, 0) if current_score >= 80 else (0, 0, 255)
+            mp_drawing.draw_landmarks(
+                frame_f, results_f.pose_landmarks, mp_pose.POSE_CONNECTIONS,
+                landmark_drawing_spec=mp_drawing.DrawingSpec(color=skel_color_f, thickness=6, circle_radius=5),
+                connection_drawing_spec=mp_drawing.DrawingSpec(color=(255, 255, 255), thickness=3)
+            )
 
-        # Interfejs
-        cv2.putText(klatka_przod, f"WYNIK: {licznik_powtorzen}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 0),
-                    4)
-        cv2.putText(klatka_bok, f"STAN: {stan_ruchu}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 255, 0), 4)
+        # 2. analiza bok
+        if results_s.pose_landmarks:
+            landmarks_s = results_s.pose_landmarks.landmark
 
-        # Łączenie dwóch widoków
-        polaczony_ekran = np.hstack((klatka_przod, klatka_bok))
-        cv2.imshow('Skaner Deadlift - Wersja Stabilna', polaczony_ekran)
+            shoulder = [landmarks_s[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x,
+                        landmarks_s[mp_pose.PoseLandmark.LEFT_SHOULDER.value].y]
+            hip = [landmarks_s[mp_pose.PoseLandmark.LEFT_HIP.value].x,
+                   landmarks_s[mp_pose.PoseLandmark.LEFT_HIP.value].y]
+            knee = [landmarks_s[mp_pose.PoseLandmark.LEFT_KNEE.value].x,
+                    landmarks_s[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
+            ankle = [landmarks_s[mp_pose.PoseLandmark.LEFT_ANKLE.value].x,
+                     landmarks_s[mp_pose.PoseLandmark.LEFT_ANKLE.value].y]
+            elbow = [landmarks_s[mp_pose.PoseLandmark.LEFT_ELBOW.value].x,
+                     landmarks_s[mp_pose.PoseLandmark.LEFT_ELBOW.value].y]
+            wrist = [landmarks_s[mp_pose.PoseLandmark.LEFT_WRIST.value].x,
+                     landmarks_s[mp_pose.PoseLandmark.LEFT_WRIST.value].y]
+
+            hip_angle = calculate_angle(shoulder, hip, knee)
+            knee_angle = calculate_angle(hip, knee, ankle)
+            arm_angle = calculate_angle(shoulder, elbow, wrist)
+
+            if arm_angle < 150:
+                errors_side.append("UGIETE RECE! (-10%)")
+                current_score -= 10
+                krytyczny_blad_glosowy = "bent_arms"
+
+            if knee_angle > 140 and hip_angle < 115:
+                errors_side.append("STRZAL Z BIODRA (GARB)! (-20%)")
+                current_score -= 20
+                krytyczny_blad_glosowy = "straight_back"
+
+            if deadlift_state == "DOWN":
+                if hip[1] > knee[1] - 0.05:
+                    errors_side.append("BIODRA ZA NISKO (PRZYSIAD)! (-20%)")
+                    current_score -= 20
+                    krytyczny_blad_glosowy = "hips_too_low"
+                elif hip[1] < shoulder[1] + 0.1:
+                    errors_side.append("BIODRA ZA WYSOKO! (-10%)")
+                    current_score -= 10
+                    krytyczny_blad_glosowy = "hips_too_high"
+
+            # wysłanie błędu do zewnętrznego modułu głosowego
+            if krytyczny_blad_glosowy:
+                trener.mistake_tell(krytyczny_blad_glosowy)
+            else:
+                trener.brak_bledow()
+
+            current_score = max(0, current_score)
+            if deadlift_state == "DOWN":
+                rep_min_score = min(rep_min_score, current_score)
+
+            skel_color_s = (0, 255, 0) if current_score >= 80 else (0, 0, 255)
+            mp_drawing.draw_landmarks(
+                frame_s, results_s.pose_landmarks, mp_pose.POSE_CONNECTIONS,
+                landmark_drawing_spec=mp_drawing.DrawingSpec(color=skel_color_s, thickness=6, circle_radius=5),
+                connection_drawing_spec=mp_drawing.DrawingSpec(color=(255, 255, 255), thickness=3)
+            )
+
+            if hip_angle < 110 and knee_angle < 120:
+                if deadlift_state == "UP" or deadlift_state == "START":
+                    deadlift_state = "DOWN"
+                    rep_min_score = 100
+
+            if hip_angle > 165 and knee_angle > 165:
+                if deadlift_state == "DOWN":
+                    if rep_min_score >= 80:
+                        rep_counter += 1
+                        last_rep_status = f"ZALICZONO ({rep_min_score}%)"
+                        last_rep_color = (0, 255, 0)
+                    else:
+                        last_rep_status = f"BLEDNA FORMA ({rep_min_score}%)"
+                        last_rep_color = (0, 0, 255)
+                    deadlift_state = "UP"
+
+        # 3. interfejs
+        cv2.putText(frame_f, f"Powtorzenia: {rep_counter}", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 0), 3)
+        score_color = (0, 255, 0) if current_score >= 80 else (0, 0, 255)
+        cv2.putText(frame_f, f"Obecna forma: {current_score}%", (20, 90), cv2.FONT_HERSHEY_SIMPLEX, 1.0, score_color, 2)
+
+        y_offset = 140
+        for err in errors_front:
+            cv2.putText(frame_f, err, (20, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
+            y_offset += 35
+
+        cv2.putText(frame_s, f"Stan: {deadlift_state}", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 0), 3)
+        if last_rep_status:
+            cv2.putText(frame_s, f"Ostatnie: {last_rep_status}", (20, 90), cv2.FONT_HERSHEY_SIMPLEX, 1.0,
+                        last_rep_color, 2)
+
+        y_offset = 140
+        for err in errors_side:
+            cv2.putText(frame_s, err, (20, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
+            y_offset += 35
+
+        combined_view = np.hstack((frame_f, frame_s))
+        cv2.imshow('Skaner Deadlift Pro', combined_view)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-kamera_przod.stop()
-kamera_bok.stop()
+cam_front.stop()
+cam_side.stop()
 cv2.destroyAllWindows()
