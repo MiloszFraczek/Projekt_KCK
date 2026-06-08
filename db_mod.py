@@ -87,35 +87,33 @@ class SessionRepository:
 
 
 #plik w foramacie png
-def generate_progress_chart(output_filename="wykres_postepow.png"): #tworzenie wykresu postepow
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
+class ProgressVisualizer:
+    @staticmethod
+    def generate_chart(data: List[Dict[str, Any]], output_filename: str = "wykres_postepow.png") -> None:
+        if not data:
+            print("[Wizualizacja] Brak danych do wyświetlenia.")
+            return
 
-    #pobranie danych z bazy danych
-    cursor.execute("SELECT date, reps_count, mistakes_count FROM sessions ORDER BY date ASC")
-    rows = cursor.fetchall()
-    conn.close()
+        dates = [item["day"] for item in data]
+        reps = [item["reps"] for item in data]
+        mistakes = [item["mistakes"] for item in data]
 
-    #zabezpiecznie przed brakiem danych
-    if not rows:
-        print("Brak danych w bazie. Wykonaj najpierw trening!")
-        return
+        plt.figure(figsize=(10, 6))
+        plt.plot(dates, reps, marker='o', linestyle='-', color='green', label='Poprawne powtórzenia')
+        plt.plot(dates, mistakes, marker='x', linestyle='--', color='red', label='Błędy')
 
-    dates = [row[0][:10] for row in rows]
-    reps = [row[1] for row in rows]
-    mistakes = [row[2] for row in rows]
+        plt.title("Analiza Postępów Treningowych")
+        plt.xlabel("Data")
+        plt.ylabel("Suma powtórzeń / błędów")
+        plt.legend()
+        plt.xticks(rotation=45)
+        plt.tight_layout()
 
-    #tworzenie wykresu
-    plt.figure(figsize=(10,6))
-
-    plt.plot(dates, reps, marker='o', linestyle='-', color='green', label='Poprawne powtorzenia')
-    plt.plot(dates, mistakes, marker='x', linestyle='--', color='red', label='Bledy')
-
-    #zapisanie wykresu
-    plt.savefig(output_filename)
-    plt.close()
-
-    print(f"Wygenerowano i zapisano wykres:{output_filename}")
+        try:
+            plt.savefig(output_filename)
+            plt.close()
+        except Exception as e:
+            print(f"[VIS ERROR] Błąd zapisu wykresu: {e}")
 
 if __name__ == "__main__":
     init_db() #test dzialania tworzenia i zapisu sesji
