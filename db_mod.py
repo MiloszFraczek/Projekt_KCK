@@ -2,6 +2,7 @@ import sqlite3
 import datetime
 import os
 import matplotlib.pyplot as plt
+from typing import List, Dict, Any, Optional
 
 
 DB_NAME = "cyber_trener.db"
