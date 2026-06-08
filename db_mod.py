@@ -1,5 +1,5 @@
 import sqlite3
-import datetime
+from datetime import datetime
 import os
 import matplotlib.pyplot as plt
 from typing import List, Dict, Any, Optional
@@ -114,7 +114,3 @@ class ProgressVisualizer:
             plt.close()
         except Exception as e:
             print(f"[VIS ERROR] Błąd zapisu wykresu: {e}")
-
-if __name__ == "__main__":
-    init_db() #test dzialania tworzenia i zapisu sesji
-    generate_progress_chart()  #test funkcji
