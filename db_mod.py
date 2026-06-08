@@ -65,6 +65,24 @@ class SessionRepository:
             print(f"[DB ERROR] Nie udało się zapisać obiektu sesji: {e}")
             return False
 
+    def get_daily_summary(self, exercise_type: str = "deadlift") -> List[Dict[str, Any]]:
+        query = '''
+            SELECT substr(date, 1, 10) as day, SUM(reps_count), SUM(mistakes_count)
+            FROM sessions
+            WHERE exercise_type = ?
+            GROUP BY day
+            ORDER BY day ASC
+        '''
+        try:
+            with sqlite3.connect(self.db_name) as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, (exercise_type,))
+                rows = cursor.fetchall()
+            return [{"day": r[0], "reps": r[1], "mistakes": r[2]} for r in rows]
+        except sqlite3.Error as e:
+            print(f"[DB ERROR] Błąd podczas agregacji danych: {e}")
+            return []
+
 
 
 
