@@ -46,21 +46,26 @@ class SessionRepository:
         except sqlite3.Error as e:
             print(f"[DB ERROR] Błąd podczas tworzenia tabeli: {e}")
 
+    # zapis sesji do bazy danych
+    def save(self, session: TrainingSession) -> bool:
+        query = '''
+            INSERT INTO sessions (exercise_type, date, reps_count, mistakes_count, video_path_front, video_path_side)
+            VALUES (?, ?, ?, ?, ?, ?)
+        '''
+        try:
+            with sqlite3.connect(self.db_name) as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, (
+                    session.exercise_type, session.date, session.reps_count,
+                    session.mistakes_count, session.video_path_front, session.video_path_side
+                ))
+                session.id = cursor.lastrowid
+            return True
+        except sqlite3.Error as e:
+            print(f"[DB ERROR] Nie udało się zapisać obiektu sesji: {e}")
+            return False
 
-#zapis sesji do bazy danych
-def save_session(reps, mistakes, path_front, path_side):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    date_now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    cursor.execute('''
-        INSERT INTO sessions (date, reps_count, mistakes_count, video_path_front, video_path_side)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (date_now, reps, mistakes, path_front, path_side))
 
-    conn.commit()
-    conn.close()
-
-    print(f"Zapisano sesję: {date_now}")
 
 
 #plik w foramacie png
