@@ -1,12 +1,9 @@
-# importowanie narzędzi
 import cv2
 import numpy as np
 import threading
 import time
 import ssl
 import mediapipe as mp
-
-# IMPORT TWOJEGO MODUŁU GŁOSOWEGO
 from voice_mod import VoiceMod
 
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -14,7 +11,6 @@ ssl._create_default_https_context = ssl._create_unverified_context
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
 
-# ustawienia kamer
 INDEKS_FRONT = 0
 INDEKS_BOK = 1
 
@@ -22,7 +18,6 @@ TARGET_WIDTH = 960
 TARGET_HEIGHT = 720
 
 
-# klasa do pobierania wideo
 class RTSPVideoStream:
     def __init__(self, src=0, width=960, height=720):
         self.stream = cv2.VideoCapture(src)
@@ -54,7 +49,6 @@ class RTSPVideoStream:
         self.stream.release()
 
 
-# funkcja do obliczania kątów
 def calculate_angle(a, b, c):
     a = np.array(a)
     b = np.array(b)
@@ -64,12 +58,46 @@ def calculate_angle(a, b, c):
     return 360 - angle if angle > 180.0 else angle
 
 
-# start programu
 cam_front = RTSPVideoStream(src=INDEKS_FRONT, width=TARGET_WIDTH, height=TARGET_HEIGHT).start()
 cam_side = RTSPVideoStream(src=INDEKS_BOK, width=TARGET_WIDTH, height=TARGET_HEIGHT).start()
 
-# inicjalizacja trenera głosowego
 trener = VoiceMod()
+
+# zmienne do zarzadzania czasem i watkami glosu
+ostatnie_komunikaty = {}
+ostatni_blad = None
+czy_mowi = False
+
+
+def wywolaj_trenera(blad):
+    global ostatni_blad, czy_mowi
+
+    if czy_mowi:
+        return
+
+    obecny_czas = time.time()
+    czy_nowy = (blad != ostatni_blad)
+    czy_minal_czas = (obecny_czas - ostatnie_komunikaty.get(blad, 0) > 4.0)
+
+    if czy_nowy or czy_minal_czas:
+        ostatni_blad = blad
+        ostatnie_komunikaty[blad] = obecny_czas
+
+        # funkcja pomocnicza dla wątku
+        def gadaj():
+            global czy_mowi
+            czy_mowi = True
+            trener.mistake_tell(blad)
+            czy_mowi = False
+
+        threading.Thread(target=gadaj, daemon=True).start()
+
+
+def brak_bledow():
+    global ostatni_blad
+    if not czy_mowi:
+        ostatni_blad = None
+
 
 rep_counter = 0
 deadlift_state = "START"
@@ -101,7 +129,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5, mod
 
         errors_front = []
         errors_side = []
-        krytyczny_blad_glosowy = None
+        krytyczny_blad = None
         current_score = 100
 
         # 1. analiza przód
@@ -120,14 +148,14 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5, mod
             if abs(l_shoulder[0] - r_shoulder[0]) > 0.04:
                 errors_front.append("ASYMETRIA BARKOW! (-10%)")
                 current_score -= 10
-                krytyczny_blad_glosowy = "delts_asymetry"
+                krytyczny_blad = "delts_asymetry"
 
             knee_dist = abs(l_knee_x - r_knee_x)
             hip_dist = abs(l_hip_x - r_hip_x)
             if knee_dist < hip_dist * 0.85:
                 errors_front.append("KOLANA DO SRODKA! (-15%)")
                 current_score -= 15
-                krytyczny_blad_glosowy = "legs_width"
+                krytyczny_blad = "legs_width"
 
             skel_color_f = (0, 255, 0) if current_score >= 80 else (0, 0, 255)
             mp_drawing.draw_landmarks(
@@ -160,28 +188,28 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5, mod
             if arm_angle < 150:
                 errors_side.append("UGIETE RECE! (-10%)")
                 current_score -= 10
-                krytyczny_blad_glosowy = "bent_arms"
+                krytyczny_blad = "bent_arms"
 
             if knee_angle > 140 and hip_angle < 115:
                 errors_side.append("STRZAL Z BIODRA (GARB)! (-20%)")
                 current_score -= 20
-                krytyczny_blad_glosowy = "straight_back"
+                krytyczny_blad = "straight_back"
 
             if deadlift_state == "DOWN":
                 if hip[1] > knee[1] - 0.05:
                     errors_side.append("BIODRA ZA NISKO (PRZYSIAD)! (-20%)")
                     current_score -= 20
-                    krytyczny_blad_glosowy = "hips_too_low"
+                    krytyczny_blad = "hips_too_low"
                 elif hip[1] < shoulder[1] + 0.1:
                     errors_side.append("BIODRA ZA WYSOKO! (-10%)")
                     current_score -= 10
-                    krytyczny_blad_glosowy = "hips_too_high"
+                    krytyczny_blad = "hips_too_high"
 
-            # wysłanie błędu do zewnętrznego modułu głosowego
-            if krytyczny_blad_glosowy:
-                trener.mistake_tell(krytyczny_blad_glosowy)
+            # uzycie bramkarza watkow po stronie kamery
+            if krytyczny_blad:
+                wywolaj_trenera(krytyczny_blad)
             else:
-                trener.brak_bledow()
+                brak_bledow()
 
             current_score = max(0, current_score)
             if deadlift_state == "DOWN":
