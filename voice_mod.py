@@ -1,30 +1,26 @@
 import speech_recognition as sr
 import pyttsx3
-from enum import Enum
+
 class VoiceMod:
     def __init__(self):
         pass
-    class Mode(Enum):
-        start = 1
-        stop = 2
-
-    def speak(self,tekst):
-        silnik = pyttsx3.init()
-        silnik.say(tekst)
-        silnik.runAndWait()
+    def speak(self,text):
+        engine = pyttsx3.init()
+        engine.say(text)
+        engine.runAndWait()
 
     def get_voice(self):
         recognizer = sr.Recognizer()
 
-        with sr.Microphone() as zrodlo:
+        with sr.Microphone() as source:
             print("Nasłuchuję... (powiedz coś)")
-            recognizer.adjust_for_ambient_noise(zrodlo)
-            audio = recognizer.listen(zrodlo)
+            recognizer.adjust_for_ambient_noise(source)
+            audio = recognizer.listen(source)
 
             try:
-                tekst = recognizer.recognize_google(audio, language="pl-PL")
-                print(f"Rozpoznano: {tekst}")
-                return tekst
+                text = recognizer.recognize_google(audio, language="pl-PL")
+                print(f"Rozpoznano: {text}")
+                return text
             except sr.UnknownValueError:
                 print("Przepraszam, nie zrozumiałem co powiedziałeś.")
                 return None
