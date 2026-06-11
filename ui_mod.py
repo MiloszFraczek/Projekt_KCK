@@ -5,6 +5,104 @@ from datetime import datetime
 import time
 
 
+# KLASA STRONY GŁÓWNEJ (TRENING LIVE)
+class HomeFrame(tk.Frame):
+    def __init__(self, parent, controller):
+        super().__init__(parent, bg=controller.colors["bg"])
+        self.controller = controller
+
+        header = tk.Frame(self, bg=controller.colors["white"], height=50)
+        header.pack(fill="x", padx=20, pady=10)
+        tk.Label(header, text="PANEL TRENINGU LIVE", font=("Helvetica", 14, "bold"), bg=controller.colors["white"],
+                 fg=controller.colors["primary"]).pack(side="left", padx=15)
+        main_content = tk.Frame(self, bg=controller.colors["bg"])
+        main_content.pack(fill="both", expand=True, padx=20)
+
+        controller.cam_frame = tk.Frame(main_content, bg="black", bd=2)
+        controller.cam_frame.pack(side="left", fill="both", expand=True, pady=(0, 20))
+
+        # Lewy ekran kamery
+        controller.cam_canvas_left = tk.Canvas(controller.cam_frame, bg="#1a1a1a", highlightthickness=0)
+        controller.cam_canvas_left.pack(side="left", fill="both", expand=True, padx=(0, 2))
+        controller.cam_canvas_left.create_text(150, 250, text="[ KAMERA 1 ]", fill="#444", font=("Arial", 14, "bold"))
+
+        # Prawy ekran kamery
+        controller.cam_canvas_right = tk.Canvas(controller.cam_frame, bg="#1a1a1a", highlightthickness=0)
+        controller.cam_canvas_right.pack(side="right", fill="both", expand=True, padx=(2, 0))
+        controller.cam_canvas_right.create_text(150, 250, text="[ KAMERA 2 ]", fill="#444", font=("Arial", 14, "bold"))
+
+        sidebar = tk.Frame(main_content, width=280, bg=controller.colors["white"], padx=20)
+        sidebar.pack(side="right", fill="y", padx=(20, 0), pady=(0, 20))
+        sidebar.pack_propagate(False)
+
+        tk.Label(sidebar, text="WYNIKI SESJI", font=("Arial", 11, "bold"), bg=controller.colors["white"]).pack(pady=20)
+        controller.stat_reps = controller.DATA(sidebar, "POWTÓRZENIA", "0", controller.colors["success"])
+        controller.stat_errors = controller.DATA(sidebar, "BŁĘDY", "0", controller.colors["danger"])
+        controller.stat_timer = controller.DATA(sidebar, "CZAS SESJI", "00:00", controller.colors["accent"])
+
+        tk.Button(sidebar, text="START TRENINGU", bg=controller.colors["success"], fg="white",
+                  font=("Arial", 10, "bold"),
+                  height=2, bd=0, command=controller.START).pack(fill="x", pady=(30, 5))
+        tk.Button(sidebar, text="ZAKOŃCZ I ZAPISZ", bg=controller.colors["danger"], fg="white",
+                  font=("Arial", 10, "bold"),
+                  height=2, bd=0, command=controller.STOP).pack(fill="x", pady=5)
+
+
+# KLASA KALENDARZA
+class CalendarFrame(tk.Frame):
+    def __init__(self, parent, controller):
+        super().__init__(parent, bg=controller.colors["bg"])
+        self.controller = controller
+
+        content = tk.Frame(self, bg=controller.colors["white"], padx=30, pady=30)
+        content.pack(pady=40, padx=40, fill="both", expand=True)
+        # TYTUŁ STRONY KALENDARZA
+        tk.Label(content, text="HISTORIA TWOICH TRENINGÓW", font=("Helvetica", 16, "bold"),
+                 bg=controller.colors["white"]).pack(pady=(0, 20))
+        controller.cal = Calendar(content, selectmode='day', background=controller.colors["primary"],
+                                  foreground='white',
+                                  headersbackground=controller.colors["accent"])
+        controller.cal.pack(fill="both", expand=True)
+        # PRZYCISK SZCZEGÓŁY DNIA
+        btn_check = tk.Button(content, text="POKAŻ SZCZEGÓŁY DNIA", bg=controller.colors["primary"], fg="white",
+                              pady=10,
+                              command=controller.DAYS)
+        btn_check.pack(fill="x", pady=20)
+
+
+# KLASA SEKCJI HISTORII
+class HistoryFrame(tk.Frame):
+    def __init__(self, parent, controller):
+        super().__init__(parent, bg=controller.colors["bg"])
+        self.controller = controller
+
+        content = tk.Frame(self, bg=controller.colors["white"], padx=30, pady=30)
+        content.pack(pady=20, padx=20, fill="both", expand=True)
+
+        tk.Label(content, text="ZESTAWIENIE TRENINGÓW", font=("Helvetica", 16, "bold"),
+                 bg=controller.colors["white"], fg=controller.colors["primary"]).pack(pady=(0, 20))
+
+        columns = ("data", "powt", "bledy", "czas")
+        controller.tree = ttk.Treeview(content, columns=columns, show="headings")
+
+        controller.tree.heading("data", text="Data")
+        controller.tree.heading("powt", text="Powtórzenia")
+        controller.tree.heading("bledy", text="Błędy")
+        controller.tree.heading("czas", text="Czas trwania")
+
+        controller.tree.column("data", anchor="center", width=150)
+        controller.tree.column("powt", anchor="center", width=100)
+        controller.tree.column("bledy", anchor="center", width=100)
+        controller.tree.column("czas", anchor="center", width=100)
+
+        scrollbar = ttk.Scrollbar(content, orient="vertical", command=controller.tree.yview)
+        controller.tree.configure(yscrollcommand=scrollbar.set)
+
+        controller.tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+
+# GŁÓWNA KLASA ZARZĄDZAJĄCA APLIKACJĄ
 class AppGUI(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -29,10 +127,12 @@ class AppGUI(tk.Tk):
 
         self.container = tk.Frame(self, bg=self.colors["bg"])
         self.container.pack(fill="both", expand=True)
+
+        # INICJALIZACJA STRON JAKO OBIEKTÓW OSOBNYCH KLAS
         self.pages = {}
-        self.pages["home"] = self.HOME()
-        self.pages["calendar"] = self.CALENDAR()
-        self.pages["history"] = self.HISTORY()
+        self.pages["home"] = HomeFrame(self.container, self)
+        self.pages["calendar"] = CalendarFrame(self.container, self)
+        self.pages["history"] = HistoryFrame(self.container, self)
         self.SHOW("home")
 
     # PRZYCISKI MENU
@@ -48,38 +148,6 @@ class AppGUI(tk.Tk):
             page.pack_forget()
         self.pages[page_id].pack(fill="both", expand=True)
 
-    # STRONA GŁÓWNA
-    def HOME(self):
-        page = tk.Frame(self.container, bg=self.colors["bg"])
-
-        header = tk.Frame(page, bg=self.colors["white"], height=50)
-        header.pack(fill="x", padx=20, pady=10)
-        tk.Label(header, text="PANEL TRENINGU LIVE", font=("Helvetica", 14, "bold"), bg=self.colors["white"],
-                 fg=self.colors["primary"]).pack(side="left", padx=15)
-        main_content = tk.Frame(page, bg=self.colors["bg"])
-        main_content.pack(fill="both", expand=True, padx=20)
-
-        self.cam_frame = tk.Frame(main_content, bg="black", bd=2)
-        self.cam_frame.pack(side="left", fill="both", expand=True, pady=(0, 20))
-        self.cam_canvas = tk.Canvas(self.cam_frame, bg="#1a1a1a", highlightthickness=0)
-        self.cam_canvas.pack(fill="both", expand=True)
-        self.cam_canvas.create_text(300, 250, text="[ KAMERA GOTOWA ]", fill="#444", font=("Arial", 14, "bold"))
-
-        sidebar = tk.Frame(main_content, width=280, bg=self.colors["white"], padx=20)
-        sidebar.pack(side="right", fill="y", padx=(20, 0), pady=(0, 20))
-        sidebar.pack_propagate(False)
-
-        tk.Label(sidebar, text="WYNIKI SESJI", font=("Arial", 11, "bold"), bg=self.colors["white"]).pack(pady=20)
-        self.stat_reps = self.DATA(sidebar, "POWTÓRZENIA", "0", self.colors["success"])
-        self.stat_errors = self.DATA(sidebar, "BŁĘDY", "0", self.colors["danger"])
-        self.stat_timer = self.DATA(sidebar, "CZAS SESJI", "00:00", self.colors["accent"])
-
-        tk.Button(sidebar, text="START TRENINGU", bg=self.colors["success"], fg="white", font=("Arial", 10, "bold"),
-                  height=2, bd=0, command=self.START).pack(fill="x", pady=(30, 5))
-        tk.Button(sidebar, text="ZAKOŃCZ I ZAPISZ", bg=self.colors["danger"], fg="white", font=("Arial", 10, "bold"),
-                  height=2, bd=0, command=self.STOP).pack(fill="x", pady=5)
-        return page
-
     # KARTY ZE STATYSTYKAMI
     def DATA(self, parent, label, value, color):
         card = tk.Frame(parent, bg="#f8f9fa", bd=1, relief="solid")
@@ -88,53 +156,6 @@ class AppGUI(tk.Tk):
         val_lbl = tk.Label(card, text=value, bg="#f8f9fa", font=("Arial", 16, "bold"), fg=color)
         val_lbl.pack(pady=(0, 5))
         return val_lbl
-
-    # KALENDARZ
-    def CALENDAR(self):
-        page = tk.Frame(self.container, bg=self.colors["bg"])
-        content = tk.Frame(page, bg=self.colors["white"], padx=30, pady=30)
-        content.pack(pady=40, padx=40, fill="both", expand=True)
-        # TYTUŁ STRONY KALENDARZA
-        tk.Label(content, text="HISTORIA TWOICH TRENINGÓW", font=("Helvetica", 16, "bold"),
-                 bg=self.colors["white"]).pack(pady=(0, 20))
-        self.cal = Calendar(content, selectmode='day', background=self.colors["primary"], foreground='white',
-                            headersbackground=self.colors["accent"])
-        self.cal.pack(fill="both", expand=True)
-        # PRZYCISK SZCZEGÓŁY DNIA
-        btn_check = tk.Button(content, text="POKAŻ SZCZEGÓŁY DNIA", bg=self.colors["primary"], fg="white", pady=10,
-                              command=self.DAYS)
-        btn_check.pack(fill="x", pady=20)
-        return page
-
-    # SEKCJA HISTORII
-    def HISTORY(self):
-        page = tk.Frame(self.container, bg=self.colors["bg"])
-        content = tk.Frame(page, bg=self.colors["white"], padx=30, pady=30)
-        content.pack(pady=20, padx=20, fill="both", expand=True)
-
-        tk.Label(content, text="ZESTAWIENIE TRENINGÓW", font=("Helvetica", 16, "bold"),
-                 bg=self.colors["white"], fg=self.colors["primary"]).pack(pady=(0, 20))
-
-        columns = ("data", "powt", "bledy", "czas")
-        self.tree = ttk.Treeview(content, columns=columns, show="headings")
-
-        self.tree.heading("data", text="Data")
-        self.tree.heading("powt", text="Powtórzenia")
-        self.tree.heading("bledy", text="Błędy")
-        self.tree.heading("czas", text="Czas trwania")
-
-        self.tree.column("data", anchor="center", width=150)
-        self.tree.column("powt", anchor="center", width=100)
-        self.tree.column("bledy", anchor="center", width=100)
-        self.tree.column("czas", anchor="center", width=100)
-
-        scrollbar = ttk.Scrollbar(content, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscrollcommand=scrollbar.set)
-
-        self.tree.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-
-        return page
 
     # FUNKCJA AKTUALIZACJI TIMERA
     def TIMER(self):
@@ -147,7 +168,7 @@ class AppGUI(tk.Tk):
 
     # FUNKCJA STARTU TRENINGU
     def START(self):
-        messagebox.showinfo("Start programu", "Uruchamianie kamery.")
+        messagebox.showinfo("Start programu", "Uruchamianie kamer.")
         self.stat_reps.config(text="2")
         # Inicjalizacja timera
         self.start_time = time.time()
@@ -168,7 +189,7 @@ class AppGUI(tk.Tk):
             self.tree.insert("", 0, values=(timestamp, reps, errs, duration))
             print("Zapisano do bazy danych.")
 
-        self.stat_timer.config(text="00:00")  # Reset zegara po decyzji
+        self.stat_timer.config(text="00:00")
 
     # SZCZEGÓŁY WYBRANEGO DNIA
     def DAYS(self):
