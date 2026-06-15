@@ -16,7 +16,7 @@ class TrainingSession:
         self.id = session_id
         self.exercise_type = exercise_type
         self.date = date_str or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        self.reps_count = reps_count =1
+        self.reps_count = reps_count
         self.mistakes_count = mistakes_count
         self.video_path_front = video_path_front
         self.video_path_side = video_path_side
@@ -71,7 +71,7 @@ class SessionRepository:
             FROM sessions
             WHERE exercise_type = ?
             GROUP BY day
-            ORDER BY day DES
+            ORDER BY day ASC
         '''
         try:
             with sqlite3.connect(self.db_name) as conn:
