@@ -117,9 +117,9 @@ class DeadliftScannerApp:
     def run(self):
         self.is_running = True
 
-        with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5,
+        with mp_pose.Pose(min_detection_confidence=0.8, min_tracking_confidence=0.8,
                           model_complexity=1) as front_pose_ai, \
-                mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5,
+                mp_pose.Pose(min_detection_confidence=0.8, min_tracking_confidence=0.8,
                              model_complexity=1) as side_pose_ai:
 
             while self.is_running:
@@ -278,13 +278,8 @@ class DeadliftScannerApp:
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
                     y_text_offset += 35
 
-                combined_camera_view = np.hstack((front_frame, side_frame))
-                cv2.imshow('Skaner Deadlift Pro', combined_camera_view)
-
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    self.stop()
-
-        self.cleanup()
+                self.current_front = front_frame
+                self.current_side = side_frame
 
     def cleanup(self):
         self.front_camera.stop_stream()
