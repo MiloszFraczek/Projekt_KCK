@@ -71,7 +71,7 @@ class SessionRepository:
             FROM sessions
             WHERE exercise_type = ?
             GROUP BY day
-            ORDER BY day DES
+            ORDER BY day ASC
         '''
         try:
             with sqlite3.connect(self.db_name) as conn:
