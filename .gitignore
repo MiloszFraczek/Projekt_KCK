@@ -201,6 +201,16 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Bazy danych
+*.db
+*.sqlite
+*.sqlite3
+
+# Pliki wideo i nagrania z treningów
+/recordings/
+*.mp4
+*.avi
+
 # Marimo
 marimo/_static/
 marimo/_lsp/
