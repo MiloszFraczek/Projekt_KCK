@@ -84,7 +84,7 @@ class DeadliftScannerApp:
                   np.arctan2(point_a[1] - point_b[1], point_a[0] - point_b[0])
         angle = np.abs(radians * 180.0 / np.pi)
 
-        result = 360 - angle-angle if angle > 160.0 else angle
+        result = 360 - angle if angle > 180.0 else angle
 
         return result
 
