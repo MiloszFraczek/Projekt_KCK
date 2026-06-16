@@ -22,6 +22,9 @@ class BackgroundCameraStream:
         self.is_frame_grabbed, self.current_frame = self.video_stream.read()
         self.is_stopped = False
 
+        self.current_front_processed = None
+        self.current_side_processed = None
+
     def start_stream(self):
         threading.Thread(target=self.update_frames, args=(), daemon=True).start()
         return self
@@ -325,11 +328,9 @@ class DeadliftScannerApp:
                                 ui_cfg['thickness_medium'])
                     y_text_offset += ui_cfg['text_y_step']
 
-                combined_camera_view = np.hstack((front_frame, side_frame))
-                cv2.imshow('Skaner Deadlift Pro', combined_camera_view)
-
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    self.stop()
+                self.current_front_processed = front_frame
+                self.current_side_processed = side_frame
+                time.sleep(0.01)
 
         self.cleanup()
 

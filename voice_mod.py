@@ -4,7 +4,7 @@ import json
 
 class VoiceMod:
     def __init__(self):
-        with open('voice_config.json', 'r', encoding='utf-8') as file:
+        with open('config/voice_config.json', 'r', encoding='utf-8') as file:
             self.config = json.load(file)
 
     def speak(self, text):

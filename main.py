@@ -2,8 +2,8 @@ import customtkinter as ctk
 import threading
 from db_mod import SessionRepository
 from voice_mod import VoiceMod
-from views.home_view import HomeView
-from views.history_view import HistoryView
+from view.home_view import HomeView
+from view.history_view import HistoryView
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")

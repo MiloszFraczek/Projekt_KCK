@@ -65,3 +65,100 @@ class HomeView(ctk.CTkFrame):
         val_label = ctk.CTkLabel(card, text=value, font=("Arial", 28, "bold"), text_color=color)
         val_label.pack(pady=(0, 15))
         return val_label
+
+    def start_training(self):
+        if self.is_training: return
+
+        self.is_training = True
+        self.btn_start.configure(state="disabled")
+        self.btn_stop.configure(state="normal")
+
+        self.scanner = DeadliftScannerApp()
+        self.scanner_thread = threading.Thread(target=self.scanner.run, daemon=True)
+        self.scanner_thread.start()
+
+        self.start_time = time.time()
+        self.timer_running = True
+        self.update_timer()
+
+        self.update_video_feed()
+
+        try:
+            self.voice.speak("Rozpoczynam sesję treningową. Przygotuj się.")
+        except Exception:
+            pass
+
+    def stop_training(self):
+        self.is_training = False
+        self.timer_running = False
+        self.btn_start.configure(state="normal")
+        self.btn_stop.configure(state="disabled")
+
+        if self.scanner:
+            reps = self.scanner.total_reps_counter
+            mistakes = len(self.scanner.last_warning_times)
+
+            self.scanner.stop()
+            self.scanner = None
+
+            self.cam_left.configure(image="", text="[ KAMERA 1 - PRZÓD ]")
+            self.cam_right.configure(image="", text="[ KAMERA 2 - BOK ]")
+
+            if reps > 0:
+                prompt_msg = f"Wykonano powtórzeń: {reps}.\nCzy chcesz zapisać ten trening w bazie danych?"
+            else:
+                prompt_msg = "Nie zarejestrowano żadnych pełnych powtórzeń.\nCzy mimo to chcesz zapisać tę sesję?"
+
+            if messagebox.askyesno("Koniec treningu", prompt_msg):
+                session = TrainingSession(reps_count=reps, mistakes_count=mistakes, video_path_front="N/A",
+                                          video_path_side="N/A")
+                self.db.save(session)
+                try:
+                    self.voice.speak("Sesja treningowa została zapisana pomyślnie.")
+                except Exception:
+                    pass
+            else:
+                try:
+                    self.voice.speak("Sesja anulowana.")
+                except Exception:
+                    pass
+
+        self.lbl_reps.configure(text="0")
+        self.lbl_errs.configure(text="0")
+        self.lbl_time.configure(text="00:00")
+
+    def update_timer(self):
+        if self.timer_running:
+            elapsed = int(time.time() - self.start_time)
+            mins, secs = divmod(elapsed, 60)
+            self.lbl_time.configure(text=f"{mins:02d}:{secs:02d}")
+            self.after(1000, self.update_timer)
+
+    def update_video_feed(self):
+        if self.is_training and self.scanner:
+            container_w = self.cam_container.winfo_width()
+            container_h = self.cam_container.winfo_height()
+
+            cam_w = max((container_w // 2) - 25, 100)
+            cam_h = max(container_h - 25, 100)
+
+            if hasattr(self.scanner, 'current_front_processed') and self.scanner.current_front_processed is not None:
+                img_f = cv2.cvtColor(self.scanner.current_front_processed, cv2.COLOR_BGR2RGB)
+                pil_f = Image.fromarray(img_f)
+                ctk_img_f = ctk.CTkImage(light_image=pil_f, dark_image=pil_f, size=(cam_w, cam_h))
+                self.cam_left.configure(image=ctk_img_f, text="")
+                self.cam_left.image = ctk_img_f
+
+            if hasattr(self.scanner, 'current_side_processed') and self.scanner.current_side_processed is not None:
+                img_s = cv2.cvtColor(self.scanner.current_side_processed, cv2.COLOR_BGR2RGB)
+                pil_s = Image.fromarray(img_s)
+                ctk_img_s = ctk.CTkImage(light_image=pil_s, dark_image=pil_s, size=(cam_w, cam_h))
+                self.cam_right.configure(image=ctk_img_s, text="")
+                self.cam_right.image = ctk_img_s
+
+            self.lbl_reps.configure(text=str(self.scanner.total_reps_counter))
+
+            if hasattr(self.scanner, 'last_warning_times'):
+                self.lbl_errs.configure(text=str(len(self.scanner.last_warning_times)))
+
+            self.after(30, self.update_video_feed)
