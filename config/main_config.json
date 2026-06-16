@@ -1,0 +1,39 @@
+{
+  "app": {
+    "title": "Cyber Trener PRO",
+    "geometry": "1100x800",
+    "min_width": 950,
+    "min_height": 700,
+    "appearance_mode": "dark",
+    "color_theme": "blue"
+  },
+  "colors": {
+    "transparent": "transparent",
+    "voice_btn_fg": "#8e44ad",
+    "voice_btn_hover": "#9b59b6",
+    "status_ready": "gray",
+    "status_listen": "#f1c40f"
+  },
+  "fonts": {
+    "logo_size": 20,
+    "logo_weight": "bold"
+  },
+  "dimens": {
+    "sidebar_width": 200,
+    "frame_corner_radius": 10,
+    "sidebar_corner_radius": 0,
+    "pad_x": 20,
+    "pad_y_normal": 10,
+    "pad_y_large": 20,
+    "pad_y_logo": [20, 30]
+  },
+  "texts": {
+    "logo": "CYBER TRENER",
+    "btn_home": "Trening Live",
+    "btn_history": "Historia i Wykresy",
+    "voice_btn": "🎤 Nasłuchuj komendy",
+    "status_ready": "Asystent: Gotowy",
+    "status_listen": "Asystent: Słucham...",
+    "voice_trigger": "rozpocznij trening"
+  }
+}
