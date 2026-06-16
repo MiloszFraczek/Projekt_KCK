@@ -66,6 +66,8 @@ class ModernApp(ctk.CTk):
             voice_text = self.voice.get_voice()
             if voice_text and "rozpocznij trening" in voice_text.lower():
                 self.after(0, self.frames["home"].start_training)
+            if voice_text and "zakończ trening" in voice_text.lower():
+                self.after(0, self.frames["home"].stop_training())
             self.after(0, lambda: self.voice_status.configure(text="Asystent: Gotowy", text_color="gray"))
             self.after(0, lambda: self.btn_voice.configure(state="normal"))
 
