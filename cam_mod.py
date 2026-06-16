@@ -102,7 +102,7 @@ class DeadliftScannerApp:
 
             def speak_action():
                 self.is_coach_speaking = True
-                self.voice_coach.announce_error(error_name)
+                self.voice_coach.mistake_tell(error_name)
                 self.is_coach_speaking = False
 
             threading.Thread(target=speak_action, daemon=True).start()
