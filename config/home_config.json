@@ -1,0 +1,43 @@
+{
+  "texts": {
+    "cam_left": "[ KAMERA 1 - PRZÓD ]",
+    "cam_right": "[ KAMERA 2 - BOK ]",
+    "stat_reps": "POWTÓRZENIA",
+    "stat_errs": "BŁĘDY",
+    "stat_time": "CZAS SESJI",
+    "val_zero": "0",
+    "val_time_zero": "00:00",
+    "btn_start": "START TRENINGU",
+    "btn_stop": "ZAKOŃCZ I ZAPISZ",
+    "voice_start": "Rozpoczynam sesję treningową. Przygotuj się.",
+    "voice_saved": "Sesja treningowa została zapisana pomyślnie.",
+    "voice_canceled": "Sesja anulowana.",
+    "msg_title": "Koniec treningu",
+    "msg_reps": "Wykonano powtórzeń: {reps}.\nCzy chcesz zapisać ten trening w bazie danych?",
+    "msg_no_reps": "Nie zarejestrowano żadnych pełnych powtórzeń.\nCzy mimo to chcesz zapisać tę sesję?",
+    "db_na": "N/A"
+  },
+  "colors": {
+    "cam_bg": "#1a1a1a",
+    "success": "#2ecc71",
+    "danger": "#e74c3c",
+    "info": "#3498db",
+    "transparent": "transparent",
+    "btn_start": "#27ae60",
+    "btn_start_hover": "#2ecc71",
+    "btn_stop": "#c0392b",
+    "btn_stop_hover": "#e74c3c"
+  },
+  "fonts": {
+    "stat_title": ["Arial", 12],
+    "stat_val": ["Arial", 28, "bold"],
+    "btn": ["Arial", 14, "bold"]
+  },
+  "dimens": {
+    "cam_corner_radius": 10,
+    "stats_height": 150,
+    "cam_margin": 25,
+    "cam_min_size": 100,
+    "feed_delay_ms": 30
+  }
+}
