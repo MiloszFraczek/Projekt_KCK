@@ -1,0 +1,61 @@
+{
+  "camera": {
+    "front_index": 0,
+    "side_index": 1,
+    "width": 960,
+    "height": 720
+  },
+  "mediapipe": {
+    "min_detection_confidence": 0.8,
+    "min_tracking_confidence": 0.8,
+    "model_complexity": 1
+  },
+  "logic": {
+    "voice_warning_cooldown": 4.0,
+    "sleep_time_on_wait": 1.0,
+    "max_score": 100,
+    "good_form_threshold": 80,
+    "front": {
+      "shoulder_asymmetry_threshold": 0.04,
+      "shoulder_asymmetry_penalty": 10,
+      "knees_hips_ratio": 0.85,
+      "knees_inward_penalty": 15
+    },
+    "side": {
+      "arm_angle_threshold": 150,
+      "arm_bent_penalty": 10,
+      "knee_garb_threshold": 140,
+      "hip_garb_threshold": 115,
+      "garb_penalty": 20,
+      "hips_too_low_offset": 0.05,
+      "hips_too_low_penalty": 20,
+      "hips_too_high_offset": 0.1,
+      "hips_too_high_penalty": 10,
+      "state_down_hip_angle": 110,
+      "state_down_knee_angle": 120,
+      "state_up_hip_angle": 165,
+      "state_up_knee_angle": 165
+    }
+  },
+  "ui": {
+    "text_x": 20,
+    "text_y_line1": 40,
+    "text_y_line2": 90,
+    "text_y_errors_start": 140,
+    "text_y_step": 35,
+    "font_scale_large": 1.2,
+    "font_scale_medium": 1.0,
+    "font_scale_small": 0.9,
+    "thickness_large": 3,
+    "thickness_medium": 2,
+    "skeleton_thickness": 6,
+    "skeleton_circle_radius": 5,
+    "connection_thickness": 3,
+    "colors": {
+      "green": [0, 255, 0],
+      "red": [0, 0, 255],
+      "white": [255, 255, 255],
+      "cyan": [255, 255, 0]
+    }
+  }
+}
