@@ -1,10 +1,13 @@
 import speech_recognition as sr
 import pyttsx3
+import json
 
 class VoiceMod:
     def __init__(self):
-        pass
-    def speak(self,text):
+        with open('voice_config.json', 'r', encoding='utf-8') as file:
+            self.config = json.load(file)
+
+    def speak(self, text):
         engine = pyttsx3.init()
         engine.say(text)
         engine.runAndWait()
@@ -29,19 +32,9 @@ class VoiceMod:
                 return None
     def change_state(self):
         voice = self.get_voice()
-        if voice == "rozpocznij trening":
+        if voice == self.config["commands"]["start_training"]:
             return VoiceMod.Mode.start
     def mistake_tell(self, mistake):
-        match mistake:
-            case "legs_width":
-                self.speak("Nogi za wąsko")
-            case "straight_back":
-                self.speak("Wyprostuj plecy")
-            case "delts_asymetry":
-                self.speak("Popraw barki")
-            case "bent_arms":
-                self.speak("Wyprostuj łokcie")
-            case "hips_too_low":
-                self.speak("Biodra za nisko")
-            case "hips_too_high":
-                self.speak("Biodra za wysoko")
+        message = self.config["mistakes"].get(mistake)
+        if message:
+            self.speak(message)

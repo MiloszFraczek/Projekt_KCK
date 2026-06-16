@@ -1,0 +1,13 @@
+{
+  "commands": {
+    "start_training": "rozpocznij trening"
+  },
+  "mistakes": {
+    "legs_width": "Nogi za wąsko",
+    "straight_back": "Wyprostuj plecy",
+    "delts_asymetry": "Popraw barki",
+    "bent_arms": "Wyprostuj łokcie",
+    "hips_too_low": "Biodra za nisko",
+    "hips_too_high": "Biodra za wysoko"
+  }
+}
